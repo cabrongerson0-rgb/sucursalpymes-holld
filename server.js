@@ -40,10 +40,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// Static files
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Serve main page based on configuration
+// Serve main page based on configuration - DEBE IR ANTES DE express.static
 app.get('/', (req, res) => {
     if (MAIN_PAGE_SOURCE === 'root') {
         // Servir index.html de la raíz
@@ -55,6 +52,11 @@ app.get('/', (req, res) => {
         res.sendFile(path.join(__dirname, 'public', 'index.html'));
     }
 });
+
+// Static files - Configurado para NO servir index.html automáticamente
+app.use(express.static(path.join(__dirname, 'public'), {
+    index: false  // Deshabilita el servicio automático de index.html
+}));
 
 // Helpers
 const formatSessionData = (sessionData) => {
