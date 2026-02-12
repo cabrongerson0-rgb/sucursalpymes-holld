@@ -264,14 +264,68 @@ app.get('/api/test', (req, res) => {
     res.json({ 
         status: 'OK', 
         currentAction: global.currentAction,
-        timestamp: new Date().toISOString()
+        pollCounter: global.pollCounter || 0,
+        lastUpdateId: lastUpdateId,
+        timestamp: new Date().toISOString(),
+        botTokenConfigured: !!process.env.TELEGRAM_BOT_TOKEN,
+        chatIdConfigured: !!process.env.TELEGRAM_CHAT_ID
     });
+});
+
+// Endpoint para forzar una acción (testing)
+app.get('/api/force-action/:action', (req, res) => {
+    const action = req.params.action;
+    global.currentAction = action;
+    console.log(`📣 ACCIÓN FORZADA: ${action}`);
+    res.json({ success: true, action });
+});
+
+// Endpoint para eliminar webhook (en caso de que esté bloqueando)
+app.get('/api/delete-webhook', async (req, res) => {
+    try {
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/deleteWebhook?drop_pending_updates=true`);
+        const data = await response.json();
+        console.log('🗑️ Webhook eliminado:', data);
+        res.json(data);
+    } catch (error) {
+        console.error('Error eliminando webhook:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint para verificar info del bot
+app.get('/api/bot-info', async (req, res) => {
+    try {
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+        const data = await response.json();
+        console.log('🤖 Bot info:', data);
+        res.json(data);
+    } catch (error) {
+        console.error('Error obteniendo bot info:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Endpoint para verificar webhook info
+app.get('/api/webhook-info', async (req, res) => {
+    try {
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/getWebhookInfo`);
+        const data = await response.json();
+        console.log('🔗 Webhook info:', data);
+        res.json(data);
+    } catch (error) {
+        console.error('Error obteniendo webhook info:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 
 
 // Start Server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`\n${'='.repeat(50)}`);
     console.log(`🚀 SERVIDOR INICIADO EN PUERTO ${PORT}`);
     console.log(`${'='.repeat(50)}\n`);
@@ -287,6 +341,32 @@ app.listen(PORT, () => {
         console.error('❌ ERROR: TELEGRAM_CHAT_ID no configurado');
     } else {
         console.log('✅ TELEGRAM_CHAT_ID configurado');
+    }
+    
+    console.log('\n🤖 Verificando bot de Telegram...');
+    try {
+        const botToken = process.env.TELEGRAM_BOT_TOKEN;
+        const meResponse = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+        const meData = await meResponse.json();
+        if (meData.ok) {
+            console.log(`✅ Bot conectado: @${meData.result.username}`);
+        } else {
+            console.error('❌ Error al verificar bot:', meData);
+        }
+        
+        // Verificar y eliminar webhook si existe
+        const webhookResponse = await fetch(`https://api.telegram.org/bot${botToken}/getWebhookInfo`);
+        const webhookData = await webhookResponse.json();
+        if (webhookData.ok && webhookData.result.url) {
+            console.log('⚠️ Webhook detectado:', webhookData.result.url);
+            console.log('🗑️ Eliminando webhook para usar long polling...');
+            await fetch(`https://api.telegram.org/bot${botToken}/deleteWebhook?drop_pending_updates=true`);
+            console.log('✅ Webhook eliminado');
+        } else {
+            console.log('✅ No hay webhook configurado (perfecto para long polling)');
+        }
+    } catch (error) {
+        console.error('❌ Error verificando bot:', error.message);
     }
     
     console.log('\n🤖 Iniciando Telegram polling...\n');
