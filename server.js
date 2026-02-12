@@ -9,6 +9,15 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ========================================
+// 🔧 CONFIGURACIÓN DE PÁGINA PRINCIPAL
+// ========================================
+// Cambia esta variable para elegir qué index.html usar como página principal:
+// 'root'   = Usa index.html de la raíz del proyecto
+// 'public' = Usa index.html de la carpeta public
+const MAIN_PAGE_SOURCE = 'root';  // 👈 Cambia esto a 'public' si quieres usar el de public
+// ========================================
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
@@ -34,9 +43,17 @@ app.use((req, res, next) => {
 // Static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Serve root index.html as main page
+// Serve main page based on configuration
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    if (MAIN_PAGE_SOURCE === 'root') {
+        // Servir index.html de la raíz
+        console.log('📄 Sirviendo: index.html de RAÍZ');
+        res.sendFile(path.join(__dirname, 'index.html'));
+    } else {
+        // Servir index.html de public
+        console.log('📄 Sirviendo: index.html de PUBLIC');
+        res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    }
 });
 
 // Helpers
@@ -329,6 +346,15 @@ app.listen(PORT, async () => {
     console.log(`\n${'='.repeat(50)}`);
     console.log(`🚀 SERVIDOR INICIADO EN PUERTO ${PORT}`);
     console.log(`${'='.repeat(50)}\n`);
+    
+    // Mostrar configuración de página principal
+    console.log('📄 PÁGINA PRINCIPAL CONFIGURADA:');
+    if (MAIN_PAGE_SOURCE === 'root') {
+        console.log('   ✅ index.html de RAÍZ del proyecto');
+    } else {
+        console.log('   ✅ index.html de carpeta PUBLIC');
+    }
+    console.log(`   💡 Para cambiar: Edita MAIN_PAGE_SOURCE en server.js (línea 12)\n`);
     
     // Verificar variables de entorno
     if (!process.env.TELEGRAM_BOT_TOKEN) {
