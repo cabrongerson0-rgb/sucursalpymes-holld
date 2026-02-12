@@ -213,6 +213,34 @@ app.get('/api/check-action', (req, res) => {
     res.json({ action: action || null });
 });
 
+// Confirmation endpoint
+app.post('/api/send-confirmation', async (req, res) => {
+    const { action, actionName } = req.body;
+    const sessionId = req.sessionID;
+    
+    // Respond immediately to client
+    res.json({ success: true });
+    
+    // Send confirmation to Telegram asynchronously
+    try {
+        const message = `✅ <b>COMANDO EJECUTADO</b>\n\n📍 Acción: ${actionName}\n🔑 Sesión: ${sessionId}\n⏰ ${new Date().toLocaleTimeString('es-CO')}`;
+        
+        const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: process.env.TELEGRAM_CHAT_ID,
+                text: message,
+                parse_mode: 'HTML'
+            })
+        });
+        console.log(`[✅ CONFIRMACIÓN] ${actionName} ejecutado`);
+    } catch (error) {
+        console.error('Error enviando confirmación:', error);
+    }
+});
+
 // Start Server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
