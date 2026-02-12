@@ -1,0 +1,9 @@
+logs/
+*.log
+.git/
+.vscode/
+node_modules/
+*.md
+README*
+setup-webhook.php
+setup-webhook-action.php

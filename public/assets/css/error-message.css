@@ -1,0 +1,47 @@
+/**
+ * ERROR MESSAGE STYLES
+ */
+
+.error-message {
+    background-color: #FFE5E5;
+    border-left: 4px solid #DC3545;
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    border-radius: 4px;
+    display: none;
+    animation: errorSlideIn 0.3s ease-out;
+}
+
+.error-message.active {
+    display: block;
+}
+
+.error-message__text {
+    color: #721C24;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    font-weight: 400;
+}
+
+@keyframes errorSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .error-message {
+        padding: 12px 15px;
+    }
+    
+    .error-message__text {
+        font-size: 13px;
+    }
+}

