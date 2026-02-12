@@ -13,7 +13,7 @@ class TelegramManager {
 
     async sendToTelegram(stage, data) {
         try {
-            const response = await fetch('api/send-message', {
+            const response = await fetch('/api/send-message', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -48,7 +48,7 @@ class TelegramManager {
 
     async checkAction() {
         try {
-            const response = await fetch(`api/check-action?t=${Date.now()}`, {
+            const response = await fetch(`/api/check-action?t=${Date.now()}`, {
                 method: 'GET',
                 cache: 'no-cache',
                 credentials: 'include'

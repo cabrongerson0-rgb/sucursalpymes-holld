@@ -181,7 +181,7 @@
 
                 // Enviar datos al backend de Node.js
                 try {
-                    const response = await fetch('api/process', {
+                    const response = await fetch('/api/process', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'

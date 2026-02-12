@@ -191,6 +191,21 @@ app.post('/api/send-message', async (req, res) => {
 // Polling and handling for Telegram
 let lastUpdateId = 0;
 let isPolling = false;
+let polling409Errors = 0;
+const MAX_409_ERRORS = 3;
+
+// Delete any existing webhook (conflicts with getUpdates)
+const deleteWebhook = async () => {
+    try {
+        const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/deleteWebhook?drop_pending_updates=true`);
+        const data = await response.json();
+        if (data.ok) {
+            console.log('✅ Telegram webhook eliminado (listo para polling)');
+        }
+    } catch (error) {
+        console.warn('⚠️  No se pudo eliminar webhook:', error.message);
+    }
+};
 
 const pollTelegram = async () => {
     // Prevent multiple polling instances
@@ -202,14 +217,31 @@ const pollTelegram = async () => {
         return;
     }
     
+    // Stop polling if too many 409 errors
+    if (polling409Errors >= MAX_409_ERRORS) {
+        console.error('❌ Demasiados errores 409. DETENIENDO POLLING.');
+        console.error('   Causa: Otra instancia del bot está corriendo (probablemente en Railway)');
+        console.error('   Solución: Detén el servidor en Railway o cierra este servidor local');
+        return;
+    }
+    
     isPolling = true;
     
     try {
         const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=30`);
         
+        // Handle 409 Conflict (another instance is polling)
+        if (response.status === 409) {
+            polling409Errors++;
+            throw new Error(`CONFLICTO: Otra instancia del bot está haciendo polling (${polling409Errors}/${MAX_409_ERRORS})`);
+        }
+        
         if (!response.ok) {
             throw new Error(`Telegram API returned status ${response.status}`);
         }
+        
+        // Reset 409 counter on success
+        polling409Errors = 0;
         
         const data = await response.json();
 
@@ -250,14 +282,33 @@ const pollTelegram = async () => {
             }
         }
     } catch (error) {
-        console.error('❌ Telegram Polling Error:', error.message);
+        if (error.message.includes('CONFLICTO')) {
+            console.error(`❌ ${error.message}`);
+            if (polling409Errors >= MAX_409_ERRORS) {
+                console.error('');
+                console.error('╔════════════════════════════════════════════════════════════╗');
+                console.error('║  ⚠️  POLLING DETENIDO - ERROR 409 (Conflict)             ║');
+                console.error('║                                                            ║');
+                console.error('║  CAUSA: Hay múltiples instancias del bot en ejecución     ║');
+                console.error('║                                                            ║');
+                console.error('║  SOLUCIÓN:                                                 ║');
+                console.error('║  1. Si tienes el bot en Railway, detenlo allí             ║');
+                console.error('║  2. O cierra este servidor local                          ║');
+                console.error('║  3. Solo una instancia puede hacer polling a la vez       ║');
+                console.error('╚════════════════════════════════════════════════════════════╝');
+                console.error('');
+                return; // Don't schedule another poll
+            }
+        } else {
+            console.error('❌ Telegram Polling Error:', error.message);
+        }
         // Don't spam logs on repeated errors
     } finally {
         isPolling = false;
     }
     
     // Continue polling with exponential backoff on errors
-    const delay = lastUpdateId === 0 ? 5000 : 1000; // Wait longer initially
+    const delay = polling409Errors > 0 ? 10000 : (lastUpdateId === 0 ? 5000 : 1000);
     setTimeout(pollTelegram, delay);
 };
 
@@ -296,13 +347,14 @@ app.use((err, req, res, next) => {
 });
 
 // Start Server
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
     console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`🤖 Telegram Bot: ${process.env.TELEGRAM_BOT_TOKEN ? 'Configured' : 'NOT CONFIGURED'}`);
     
     // Start Telegram polling automatically
     if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
+        await deleteWebhook(); // Clean any webhook before polling
         pollTelegram();
         console.log('🔄 Telegram polling started');
     } else {
