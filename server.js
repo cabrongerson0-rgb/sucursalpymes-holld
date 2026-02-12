@@ -162,31 +162,34 @@ const pollTelegram = async () => {
                     global.pendingActions = global.pendingActions || {};
                     global.pendingActions[sessionId] = action;
 
-                    // 1. Remove buttons from the message
-                    await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/editMessageReplyMarkup`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chat_id: chatId,
-                            message_id: messageId,
-                            reply_markup: { inline_keyboard: [] }
+                    // Execute Telegram API calls in parallel for faster response
+                    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+                    await Promise.all([
+                        // 1. Remove buttons from the message
+                        fetch(`https://api.telegram.org/bot${botToken}/editMessageReplyMarkup`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                chat_id: chatId,
+                                message_id: messageId,
+                                reply_markup: { inline_keyboard: [] }
+                            })
+                        }),
+                        // 2. Answer callback query to stop the loading state in Telegram
+                        fetch(`https://api.telegram.org/bot${botToken}/answerCallbackQuery`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ callback_query_id: callbackQuery.id })
                         })
-                    });
-
-                    // 2. Answer callback query to stop the loading state in Telegram
-                    await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ callback_query_id: callbackQuery.id })
-                    });
+                    ]).catch(err => console.error('Telegram API Error:', err));
                 }
             }
         }
     } catch (error) {
         console.error('Polling Error:', error);
     }
-    // Continue polling
-    setTimeout(pollTelegram, 1000);
+    // Continue polling with reduced frequency
+    setTimeout(pollTelegram, 2000);
 };
 
 // API Endpoints

